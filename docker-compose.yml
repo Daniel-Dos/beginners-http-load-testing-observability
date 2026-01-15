@@ -1,0 +1,64 @@
+version: "3.9"
+
+services:
+  tomcat:
+    image: tomcat:11-jre17
+    container_name: tomcat
+    ports:
+     - "9010:9010"
+     # - "8080:8080"   # opcional (debug)
+    volumes:
+      - ./tomcat/war:/usr/local/tomcat/webapps
+      - ./tomcat/jmx:/jmx
+      - ./tomcat/setenv.sh:/usr/local/tomcat/bin/setenv.sh
+    networks:
+      - app-net
+
+  apache:
+    image: httpd:2.4.66
+    container_name: apache
+    ports:
+      - "80:80"
+    volumes:
+      - ./apache/httpd.conf:/usr/local/apache2/conf/httpd.conf
+    depends_on:
+      - tomcat
+    networks:
+      - app-net
+
+  apache-exporter:
+    image: lusotycoon/apache-exporter
+    container_name: apache-exporter
+    command:
+      - '--scrape_uri=http://apache/server-status?auto'
+    ports:
+      - "9117:9117"
+    depends_on:
+      - apache
+    networks:
+      - app-net
+
+  prometheus:
+   image: prom/prometheus
+   container_name: prometheus
+   command:
+    - '--config.file=/etc/prometheus/prometheus.yml'
+    - '--web.enable-remote-write-receiver'
+   volumes:
+     - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+   ports:
+     - "9090:9090"
+   networks:
+     - app-net
+
+  grafana:
+   image: grafana/grafana
+   container_name: grafana
+   ports:
+     - "3000:3000"
+   networks:
+     - app-net
+
+networks:
+  app-net:
+
